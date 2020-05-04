@@ -71,6 +71,7 @@ class Render:
         self.render_counter()
 
     def init_fields(self):
+
         # Vars
 
         self.hours = StringVar(self.app, value="00")
