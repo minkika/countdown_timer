@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+from re import findall
+from sys import argv, exit
+from time import sleep
+from tkinter import CENTER, StringVar, Entry, Label, LEFT, END, Tk, DISABLED
+
+from playsound import playsound
+
+
+class Counter:
+    def __init__(self, total=0):
+        self.hours = 0
+        self.minutes = 0
+        self.seconds = 0
+        self.total = total
+
+        self.calculate_components()
+
+    def decrease(self, v=1):
+        self.total -= v
+        self.calculate_components()
+
+    def calculate_components(self):
+        total = self.total
+
+        self.hours = self.total // 3600
+        total = total % 3600
+        self.minutes = total // 60
+        self.seconds = total % 60
+
+
+class Parser:
+    @staticmethod
+    def parse(counter, hours, minutes, seconds):
+        h = int(hours) if hours.isnumeric() else 0
+        m = int(minutes) if minutes.isnumeric() else 0
+        s = int(seconds) if seconds.isnumeric() else 0
+
+        counter.total = h * 3600 + m * 60 + s
+        counter.calculate_components()
+
+    @staticmethod
+    def set_init(inp, ihr=0, imn=0, isc=0):
+        try:
+            for i in findall(r'\d+h', ' '.join(inp)):
+                ihr += int(i[:len(i) - 1])
+            for i in findall(r'\d+m', ' '.join(inp)):
+                imn += int(i[:len(i) - 1])
+            for i in findall(r'\d+s', ' '.join(inp)):
+                isc += int(i[:len(i) - 1])
+            if ihr + imn + isc == 0:
+                if len(inp) == 4:
+                    ihr, imn, isc = map(int, [inp[1], inp[2], inp[3]])
+                elif len(inp) == 3:
+                    imn, isc = map(int, [inp[1], inp[2]])
+                else:
+                    imn = int(inp[1])
+            return ihr * 3600 + imn * 60 + isc
+        except:
+            return 300
+
+
+class Render:
+    def __init__(self, counter, app):
+        self.counter = counter
+        self.app = app
+
+        self.init_fields()
+        self.render_counter()
+
+    def init_fields(self):
+        # Vars
+
+        self.hours = StringVar(self.app, value="00")
+        self.minutes = StringVar(self.app, value="00")
+        self.seconds = StringVar(self.app, value="00")
+
+        # Fields
+
+        field_params = {
+            "bg": "#d9d9d9",
+            "justify": CENTER,
+            "font": "Verdana 44 bold",
+            "width": 2,
+            "bd": 0,
+        }
+        colon_params = {
+            "bg": "#d9d9d9",
+            "text": ":",
+            "justify": CENTER,
+            "font": "Verdana 30 bold",
+            "width": 2,
+        }
+
+        self.input_hours = Entry(self.app, **field_params, textvariable=self.hours)
+        self.colon1 = Label(self.app, **colon_params)
+        self.input_minutes = Entry(self.app, **field_params, textvariable=self.minutes)
+        self.colon2 = Label(self.app, **colon_params)
+        self.input_seconds = Entry(self.app, **field_params, textvariable=self.seconds)
+
+        # Layout
+
+        self.input_hours.pack(side=LEFT)
+        self.colon1.pack(side=LEFT)
+        self.input_minutes.pack(side=LEFT)
+        self.colon2.pack(side=LEFT)
+        self.input_seconds.pack(side=LEFT)
+
+        # Events - Validation
+
+        allowDigitsOnly = (
+            lambda event: "break"
+            if not event.char.isnumeric() and event.keycode != 22
+            else event.widget.delete(1, END)
+        )
+
+        self.input_hours.bind("<KeyPress>", allowDigitsOnly)
+        self.input_minutes.bind("<KeyPress>", allowDigitsOnly)
+        self.input_seconds.bind("<KeyPress>", allowDigitsOnly)
+
+        # Events - Start
+
+        self.input_hours.bind("<Return>", self.start)
+        self.input_minutes.bind("<Return>", self.start)
+        self.input_seconds.bind("<Return>", self.start)
+
+        self.input_hours.bind("<KP_Enter>", self.start)
+        self.input_minutes.bind("<KP_Enter>", self.start)
+        self.input_seconds.bind("<KP_Enter>", self.start)
+
+        self.app.bind("<Return>", self.start)
+        self.app.bind("<KP_Enter>", self.start)
+
+        self.app.update()
+
+    def start(self, event):
+        self.parse_fields()
+        self.disable_fields()
+
+        for i in range(self.counter.total):
+            sleep(1)
+            self.counter.decrease()
+            self.render_counter()
+            if running:
+                self.app.update()
+            else:
+                exit(0)
+
+        self.finish()
+
+    def disable_fields(self):
+        self.input_hours.config(state=DISABLED)
+        self.input_minutes.config(state=DISABLED)
+        self.input_seconds.config(state=DISABLED)
+        if running:
+            self.app.update()
+
+    def parse_fields(self):
+        Parser.parse(
+            self.counter,
+            self.input_hours.get(),
+            self.input_minutes.get(),
+            self.input_seconds.get(),
+        )
+
+    def finish(self):
+        self.app.playsound()
+        self.app.destroy()
+
+    def render_counter(self):
+        self.hours.set(str(self.counter.hours).rjust(2, "0"))
+        self.minutes.set(str(self.counter.minutes).rjust(2, "0"))
+        self.seconds.set(str(self.counter.seconds).rjust(2, "0"))
+
+        if self.counter.total <= 3:
+            self.input_seconds.config({"disabledforeground": "red"})
+
+
+class App(Tk):
+    def __init__(self):
+        super().__init__()
+
+        w = self.winfo_screenwidth() // 2 - 195
+        h = self.winfo_screenheight() // 2 - 75
+        self.geometry(f"390x150+{w}+{h}")
+
+        self.title("Counter")
+        self.resizable(0, 0)
+        self.wm_attributes("-topmost", 1)
+        self.protocol("WM_DELETE_WINDOW", self._destroy)
+        self.update()
+
+    def start(self):
+        self.mainloop()
+
+    def _destroy(self):
+        global running
+        running = False
+        self.destroy()
+
+    def playsound(self):
+        try:
+            playsound(self.current_dir() + "/sound.mp3")
+        except:
+            pass
+
+    def current_dir(self):
+        return str(Path(__file__).resolve().parent)
+
+
+if __name__ == "__main__":
+    app = App()
+
+    counter = Counter(Parser.set_init(argv))
+    Render(counter, app)
+
+    running = True
+    app.start()
