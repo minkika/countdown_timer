@@ -12,7 +12,7 @@ Lightweight timer with always-on-top window and sound at the end of countdown
 * make timer file executable: `chmod +x timer`
 * create or copy file named `sound.mp3` into the same location
 
-### Run the timer script
+### Run
 
 Type in bash terminal `timer` to run program.  
 You can use the next markers: 
